@@ -167,9 +167,17 @@ Breakdown:
 - Highest Impact Category: ${activeCategory}
 `;
 
-    const response = await model.generateContent({
-      contents: `${systemPrompt}\n\n${userMessage}`
-    });
+    // Enforce a 4-second timeout on Google's API call to prevent Vercel serverless gateway kills
+    const apiTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Google Gemini API took too long to respond')), 4000)
+    );
+
+    const response = await Promise.race([
+      model.generateContent({
+        contents: `${systemPrompt}\n\n${userMessage}`
+      }),
+      apiTimeoutPromise
+    ]);
 
     const replyText = response.response.text().trim();
 

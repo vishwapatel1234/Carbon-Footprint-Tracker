@@ -184,7 +184,12 @@ Breakdown:
 
   } catch (error) {
     console.error('Server processing error:', error.message);
-    return res.status(500).json({ error: 'Internal server error while retrieving insights.' });
+    // Hackathon fail-safe: Fall back to local mock insight instead of throwing 500
+    const mockResult = generateMockInsight(activeCategory, breakdown, profile);
+    return res.json({
+      ...mockResult,
+      recommendation: `Note: Running in local safe mode (${error.message || 'API key error'}). ${mockResult.recommendation}`
+    });
   }
 });
 

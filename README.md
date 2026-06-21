@@ -4,7 +4,7 @@ EcoPulse is a personalized carbon tracker designed to help individuals understan
 
 ## Technology Stack
 - **Frontend**: React + Vite, Recharts, LocalStorage
-- **Backend**: Node.js + Express, Rate-limiter, Helmet, Cors, `@anthropic-ai/sdk` (Claude API)
+- **Backend**: Node.js + Express, Rate-limiter, Helmet, Cors, `@google/generative-ai` (Gemini API)
 
 ## Project Structure
 ```
@@ -16,7 +16,7 @@ carbon-tracker/
 │   │   │   ├── Onboarding.jsx       ← Questionnaire
 │   │   │   ├── FootprintForm.jsx    ← Calculations form
 │   │   │   ├── FootprintChart.jsx   ← Recharts pie & benchmark bar visualizer
-│   │   │   ├── AIInsight.jsx        ← Claude-insight + typewriter effect component
+│   │   │   ├── AIInsight.jsx        ← Gemini-insight + typewriter effect component
 │   │   │   ├── ActionCard.jsx       ← Next action card with commitments
 │   │   │   ├── ProgressTracker.jsx  ← History records, streaks, and pledges checklist
 │   │   │   └── ErrorBoundary.jsx    ← React Error boundary
@@ -33,7 +33,7 @@ carbon-tracker/
 │   └── package.json
 │
 └── backend/                         ← Node.js Express server
-    ├── server.js                    ← Secure routing and Claude gateway
+    ├── server.js                    ← Secure routing and Gemini gateway
     ├── .env                         ← Environment variables template
     └── package.json
 ```
@@ -46,9 +46,9 @@ cd backend
 npm install
 ```
 
-Create a `.env` file in the `backend/` folder and supply your Anthropic API Key:
+Create a `.env` file in the `backend/` folder and supply your Gemini API Key:
 ```env
-ANTHROPIC_API_KEY=your_anthropic_api_key
+GEMINI_API_KEY=your_gemini_api_key
 PORT=5000
 FRONTEND_URL=http://localhost:5173
 ```

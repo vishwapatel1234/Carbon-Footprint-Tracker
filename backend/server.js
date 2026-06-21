@@ -13,12 +13,8 @@ const PORT = process.env.PORT || 5000;
 // Security: Helmet for basic secure headers
 app.use(helmet());
 
-// Security: CORS configured to trust local development Vite server (typically port 5173)
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
+// Security: CORS configured to allow all origins for easy hackathon integration
+app.use(cors());
 
 // Security: Limit JSON payload size to prevent DOS (10kb max)
 app.use(express.json({ limit: '10kb' }));

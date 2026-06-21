@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 dotenv.config();
 
@@ -87,7 +87,7 @@ const generateMockInsight = (category, breakdown, profile) => {
   return {
     ...selected,
     category,
-    reasoning: `Mock recommendation triggered because no Anthropic API key is configured or the service is offline.`
+    reasoning: `Mock recommendation triggered because no Gemini API key is configured or the service is offline.`
   };
 };
 
@@ -105,15 +105,36 @@ app.post('/api/insight', apiLimiter, async (req, res) => {
     const validCategories = ['transport', 'diet', 'energy', 'shopping'];
     const activeCategory = validCategories.includes(sanitizedCategory) ? sanitizedCategory : 'transport';
 
+    const apiKey = process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY;
+
     // If API key is not present, fall back to mock calculations gracefully
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!apiKey) {
       const mockResult = generateMockInsight(activeCategory, breakdown, profile);
       return res.json(mockResult);
     }
 
-    // Call Anthropic API
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
+    // Call Google Generative AI (Gemini) API
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // We enforce structured JSON format directly in Gemini settings
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            recommendation: { type: 'STRING', description: '2-3 sentences. Address their specific numbers, acknowledge what they do well before suggesting.' },
+            action: { type: 'STRING', description: 'One specific, practical action. e.g., Replace 2 of your 5 weekly beef meals with lentils' },
+            estimatedSavingKg: { type: 'NUMBER', description: 'Numerical estimate of weekly CO2 savings in kg.' },
+            savingExplanation: { type: 'STRING', description: '1 sentence explaining how this savings calculation is achieved.' },
+            category: { type: 'STRING', enum: ['diet', 'transport', 'energy', 'shopping'] },
+            difficulty: { type: 'STRING', enum: ['easy', 'medium', 'hard'] },
+            timeToImpact: { type: 'STRING', enum: ['this week', 'this month', 'long-term'] }
+          },
+          required: ['recommendation', 'action', 'estimatedSavingKg', 'savingExplanation', 'category', 'difficulty', 'timeToImpact']
+        }
+      }
     });
 
     const systemPrompt = `You are a carbon footprint reduction coach with deep knowledge of climate science and behavioral psychology.
@@ -121,23 +142,12 @@ You receive a user's actual footprint data broken down by category.
 Your job is NOT to give generic climate advice.
 Your job is to find the SINGLE highest-leverage action for THIS specific person based on their actual numbers, and explain exactly how much CO2 they would save.
 Be specific. Be honest. Be actionable. Not preachy.
-Return ONLY valid JSON. No markdown. No preamble. No explanation outside JSON.
-{
-  "recommendation": "2-3 sentences. Address their specific data. Acknowledge what they're already doing well before suggesting a change.",
-  "action": "One specific action. Not 'eat less meat'. Specific: 'Replace 2 of your 5 weekly beef meals with lentils or paneer'",
-  "estimatedSavingKg": 5.2,
-  "savingExplanation": "1 sentence: how you calculated this saving",
-  "category": "diet|transport|energy|shopping",
-  "difficulty": "easy|medium|hard",
-  "timeToImpact": "this week|this month|long-term"
-}
 Rules:
 - Never say "Great job!" or use hollow encouragement.
 - Always reference the user's actual numbers, not averages.
 - If they are already low-footprint, acknowledge it and give a maintenance tip.
 - Difficulty: easy = 0 lifestyle change, medium = small habit, hard = major change.
-- estimatedSavingKg must be a realistic number you can back up.
-- Return ONLY valid JSON. No exceptions.`;
+- estimatedSavingKg must be a realistic number you can back up.`;
 
     const userMessage = `
 User Profile:
@@ -161,28 +171,23 @@ Breakdown:
 - Highest Impact Category: ${activeCategory}
 `;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }]
+    const response = await model.generateContent({
+      contents: `${systemPrompt}\n\n${userMessage}`
     });
 
-    const replyText = response.content[0].text.trim();
+    const replyText = response.response.text().trim();
 
     try {
       const parsedJSON = JSON.parse(replyText);
       return res.json(parsedJSON);
     } catch (parseError) {
-      // Fallback if Claude returns malformed JSON
-      console.error('Claude JSON Parse Error:', parseError, 'Raw response:', replyText);
+      console.error('Gemini JSON Parse Error:', parseError, 'Raw response:', replyText);
       const mockResult = generateMockInsight(activeCategory, breakdown, profile);
       return res.json(mockResult);
     }
 
   } catch (error) {
     console.error('Server processing error:', error.message);
-    // Never leak stack trace, return client-safe message or mock fallback
     return res.status(500).json({ error: 'Internal server error while retrieving insights.' });
   }
 });
@@ -201,4 +206,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-

@@ -101,7 +101,7 @@ app.post('/api/insight', apiLimiter, async (req, res) => {
     const validCategories = ['transport', 'diet', 'energy', 'shopping'];
     const activeCategory = validCategories.includes(sanitizedCategory) ? sanitizedCategory : 'transport';
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    const apiKey = req.body.userApiKey || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY;
 
     // If API key is not present, fall back to mock calculations gracefully
     if (!apiKey) {
@@ -118,15 +118,15 @@ app.post('/api/insight', apiLimiter, async (req, res) => {
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: {
-          type: 'OBJECT',
+          type: 'object',
           properties: {
-            recommendation: { type: 'STRING', description: '2-3 sentences. Address their specific numbers, acknowledge what they do well before suggesting.' },
-            action: { type: 'STRING', description: 'One specific, practical action. e.g., Replace 2 of your 5 weekly beef meals with lentils' },
-            estimatedSavingKg: { type: 'NUMBER', description: 'Numerical estimate of weekly CO2 savings in kg.' },
-            savingExplanation: { type: 'STRING', description: '1 sentence explaining how this savings calculation is achieved.' },
-            category: { type: 'STRING', enum: ['diet', 'transport', 'energy', 'shopping'] },
-            difficulty: { type: 'STRING', enum: ['easy', 'medium', 'hard'] },
-            timeToImpact: { type: 'STRING', enum: ['this week', 'this month', 'long-term'] }
+            recommendation: { type: 'string', description: '2-3 sentences. Address their specific numbers, acknowledge what they do well before suggesting.' },
+            action: { type: 'string', description: 'One specific, practical action. e.g., Replace 2 of your 5 weekly beef meals with lentils' },
+            estimatedSavingKg: { type: 'number', description: 'Numerical estimate of weekly CO2 savings in kg.' },
+            savingExplanation: { type: 'string', description: '1 sentence explaining how this savings calculation is achieved.' },
+            category: { type: 'string', enum: ['diet', 'transport', 'energy', 'shopping'] },
+            difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+            timeToImpact: { type: 'string', enum: ['this week', 'this month', 'long-term'] }
           },
           required: ['recommendation', 'action', 'estimatedSavingKg', 'savingExplanation', 'category', 'difficulty', 'timeToImpact']
         }
